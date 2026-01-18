@@ -1,0 +1,13 @@
+# Configuration file
+{
+  "prefix": "!",
+  "staff_role": "Staff",
+  "admin_role": "Admin",
+  "ticket_category": "Tickets",
+  "ticket_prefix": "ticket",
+  "welcome_message": "Cảm ơn bạn đã mở ticket! 👋\n\nStaff sẽ sớm hỗ trợ bạn. Vui lòng mô tả vấn đề chi tiết.",
+  "ticket_color": 5814783,
+  "auto_close_delay": 5,
+  "auto_close_inactive": 1800,
+  "max_user_tickets": 3
+}

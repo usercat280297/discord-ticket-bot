@@ -1,0 +1,82 @@
+import discord
+import json
+
+def load_config() -> dict:
+    """Load cấu hình từ file config.json"""
+    with open('config.json', 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def create_panel_embed(category: str) -> discord.Embed:
+    """Tạo embed panel ticket"""
+    config = load_config()
+    embed = discord.Embed(
+        title=f"📋 Panel Ticket - {category}",
+        description="Nhấn vào nút dưới để mở một ticket mới",
+        color=config.get("ticket_color", 5814783)
+    )
+    embed.add_field(
+        name="Cần hỗ trợ?",
+        value="Hãy bấm nút 'Mở Ticket' để tạo một ticket và liên hệ với team hỗ trợ",
+        inline=False
+    )
+    embed.set_footer(text="Discord Ticket Bot | Phản hồi nhanh chóng")
+    return embed
+
+def create_ticket_embed(user: discord.User, category: str) -> discord.Embed:
+    """Tạo embed ticket welcome"""
+    config = load_config()
+    embed = discord.Embed(
+        title="🎫 Welcome to your ticket",
+        description=f"{user.mention}",
+        color=config.get("ticket_color", 5814783)
+    )
+    
+    # Thêm thông tin chi tiết
+    embed.add_field(
+        name="📋 Category",
+        value=category,
+        inline=False
+    )
+    
+    embed.add_field(
+        name="⏱️ Response Time",
+        value="Staff sẽ trả lời trong vài phút đến vài giờ tùy vào tình hình",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📝 Hướng Dẫn",
+        value="• Vui lòng mô tả vấn đề của bạn một cách chi tiết\n"
+              "• Cung cấp ảnh chụp màn hình nếu cần thiết\n"
+              "• Chờ staff phản hồi của bạn\n"
+              "• Bấm **✅ It Works!** khi vấn đề được giải quyết",
+        inline=False
+    )
+    
+    embed.set_footer(text="Discord Ticket Bot")
+    return embed
+
+def create_closed_embed(user: discord.User, closed_by: discord.User, reason: str = "Không có lý do") -> discord.Embed:
+    """Tạo embed khi đóng ticket"""
+    config = load_config()
+    embed = discord.Embed(
+        title="🔒 Ticket Đã Đóng",
+        description=f"**Lý do:** {reason}",
+        color=discord.Color.red()
+    )
+    embed.add_field(name="Người mở", value=user.mention, inline=True)
+    embed.add_field(name="Người đóng", value=closed_by.mention, inline=True)
+    embed.set_footer(text="Ticket Bot")
+    return embed
+
+def create_info_embed(title: str, description: str, **fields) -> discord.Embed:
+    """Tạo embed thông tin chung"""
+    config = load_config()
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=config.get("ticket_color", 5814783)
+    )
+    for name, value in fields.items():
+        embed.add_field(name=name, value=value, inline=False)
+    return embed

@@ -17,6 +17,8 @@ from utils.checks import is_admin, is_staff, is_ticket_channel
 
 logger = logging.getLogger(__name__)
 
+# Guard to prevent duplicate panel creation when commands fire twice
+_panels_creation_in_progress = set()
 def load_config():
     with open('config.json', 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -344,10 +346,16 @@ class Tickets(commands.Cog):
     async def ticket_cmd_setup(self, ctx):
         """Prefix `!ticket setup` - tạo panel ticket"""
         try:
+            channel_id = ctx.channel.id
+            # prevent concurrent duplicate creations
+            if channel_id in _panels_creation_in_progress:
+                await ctx.send("❗ Panel đang được tạo — vui lòng chờ giây lát.")
+                return
             config = load_config()
-            if config.get("panel_channel_id") == ctx.channel.id:
+            if config.get("panel_channel_id") == channel_id:
                 await ctx.send("❗ Panel đã tồn tại trong kênh này.")
                 return
+            _panels_creation_in_progress.add(channel_id)
             embed = create_panel_embed()
             view = PanelView()
             message = await ctx.channel.send(embed=embed, view=view)
@@ -369,9 +377,12 @@ class Tickets(commands.Cog):
             )
             await ctx.send(embed=embed_success)
             logger.info(f"Panel created in {ctx.guild} | Channel: {ctx.channel.id}")
+            # done
+            _panels_creation_in_progress.discard(channel_id)
 
         except Exception as e:
             logger.error(f"Error in prefix ticket setup: {e}")
+            _panels_creation_in_progress.discard(getattr(ctx.channel, 'id', None))
             await ctx.send(f"❌ Lỗi: {e}")
     ticket = app_commands.Group(name="ticket", description="Ticket commands")
 
@@ -379,10 +390,15 @@ class Tickets(commands.Cog):
     async def ticket_setup(self, interaction: discord.Interaction):
         """Tạo panel ticket chính với dropdown (subcommand `/ticket setup`)"""
         try:
+            channel_id = interaction.channel.id if interaction.channel else None
+            if channel_id in _panels_creation_in_progress:
+                await interaction.response.send_message("❗ Panel đang được tạo — vui lòng chờ giây lát.", ephemeral=True)
+                return
             config = load_config()
-            if config.get("panel_channel_id") == interaction.channel.id:
+            if config.get("panel_channel_id") == channel_id:
                 await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
                 return
+            _panels_creation_in_progress.add(channel_id)
             embed = create_panel_embed()
 
             # Tạo view với dropdown
@@ -410,9 +426,14 @@ class Tickets(commands.Cog):
             )
             await interaction.response.send_message(embed=embed_success)
             logger.info(f"Panel created in {interaction.guild} | Channel: {interaction.channel.id}")
+            _panels_creation_in_progress.discard(channel_id)
 
         except Exception as e:
             logger.error(f"Error in /ticket setup: {e}")
+            try:
+                _panels_creation_in_progress.discard(channel_id if 'channel_id' in locals() else None)
+            except Exception:
+                pass
             await interaction.response.send_message(f"❌ Lỗi: {e}")
 
     @ticket.command(name='help', description='Hiển thị hướng dẫn sử dụng ticket')

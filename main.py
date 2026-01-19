@@ -106,15 +106,17 @@ async def main():
         # Start a minimal web server bound to the PORT Render provides so the platform
         # detects an open port. If no PORT is set, skip starting the server.
         async def run_health_server():
-            port = os.getenv('PORT')
-            if not port:
-                logger.info("No PORT env var set, skipping web server start")
-                return
+            # Bind to Render's provided PORT when available. If PORT is not set,
+            # fall back to the Render default 10000 so the service still exposes
+            # a listening TCP port (helps the platform detect the service).
+            port = os.getenv('PORT', '10000')
             try:
                 port_int = int(port)
             except ValueError:
-                logger.warning(f"Invalid PORT value: {port}")
-                return
+                logger.warning(f"Invalid PORT value: {port}; falling back to 10000")
+                port_int = 10000
+            if 'PORT' not in os.environ:
+                logger.warning(f"PORT env var not set; defaulting to {port_int} - Render typically provides PORT for Web Services")
 
             app = web.Application()
             async def handle_root(request):

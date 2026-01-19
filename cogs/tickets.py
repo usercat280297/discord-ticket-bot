@@ -420,19 +420,38 @@ class Tickets(commands.Cog):
                 existing = []
 
             if existing:
-                # If using a local-attachment panel, replace all existing panels with a single new message
+                # If using a local-attachment panel, remove any previous panel messages
                 if isinstance(panel_payload, tuple):
-                    for m in existing:
+                    embed_obj, fname = panel_payload
+                    file_path = os.path.join('images', fname) if fname else None
+                    # collect bot messages to delete: embed panels and attachment-only messages
+                    to_delete = []
+                    try:
+                        async for m in ctx.channel.history(limit=300):
+                            if m.author == ctx.bot.user:
+                                # delete attachments matching filename
+                                if m.attachments:
+                                    for a in m.attachments:
+                                        if fname and a.filename == fname:
+                                            to_delete.append(m)
+                                            break
+                                # delete old panel embeds by title
+                                if m.embeds:
+                                    title = m.embeds[0].title if m.embeds and len(m.embeds) > 0 else ''
+                                    if title in ("Self-Serve Activation", "🎫 Hệ Thống Ticket Hỗ Trợ", "🎫 Mở Ticket"):
+                                        to_delete.append(m)
+                    except Exception:
+                        pass
+                    for m in to_delete:
                         try:
                             await m.delete()
                         except Exception:
                             pass
-                    embed_obj, fname = panel_payload
-                    file_path = os.path.join('images', fname) if fname else None
                     try:
                         if file_path and os.path.exists(file_path):
                             f = discord.File(file_path, filename=fname)
-                            message = await ctx.channel.send(embed=embed_obj, file=f, view=view)
+                            # Send single file message with the dropdown view (no separate embed)
+                            message = await ctx.channel.send(file=f, view=view)
                         else:
                             message = await ctx.channel.send(embed=embed_obj, view=view)
                     except Exception:
@@ -609,7 +628,7 @@ class Tickets(commands.Cog):
                     file_path = os.path.join('images', fname) if fname else None
                     if file_path and os.path.exists(file_path):
                         f = discord.File(file_path, filename=fname)
-                        message = await interaction.channel.send(embed=embed_obj, file=f, view=view)
+                        message = await interaction.channel.send(file=f, view=view)
                     else:
                         message = await interaction.channel.send(embed=embed_obj, view=view)
                 else:

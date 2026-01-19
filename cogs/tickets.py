@@ -98,7 +98,15 @@ class PanelView(discord.ui.View):
 
 async def create_ticket_from_select(interaction: discord.Interaction, category: str):
     """Tạo ticket từ dropdown selection"""
-    await interaction.response.defer()
+    try:
+        if not interaction.response.is_done():
+            await interaction.response.defer()
+    except Exception:
+        # fallback: try to defer and ignore if already acknowledged
+        try:
+            await interaction.response.defer()
+        except Exception:
+            pass
     config = load_config()
     guild = interaction.guild
     user = interaction.user

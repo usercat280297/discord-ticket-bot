@@ -141,3 +141,84 @@ def create_info_embed(title: str, description: str, **fields) -> discord.Embed:
     for name, value in fields.items():
         embed.add_field(name=name, value=value, inline=False)
     return embed
+
+def create_panel_embed_single(attachment_name: str = None) -> tuple:
+    """Create a single, larger panel embed that can use a local attachment as the image.
+
+    If `attachment_name` is provided, the embed will set its image to
+    `attachment://{attachment_name}` which lets the caller attach the file
+    when sending the message (discord.File).
+
+    Returns a tuple `(embed, attachment_name)` where `attachment_name` may be None.
+    """
+    config = load_config()
+    color = config.get("ticket_color", 5814783)
+
+    embed = discord.Embed(
+        title="Self-Serve Activation",
+        description="You can use this panel to activate automatically.",
+        color=color,
+    )
+
+    # If an attachment name is provided, reference it as the embed image
+    if attachment_name:
+        try:
+            embed.set_image(url=f"attachment://{attachment_name}")
+        except Exception:
+            pass
+    else:
+        # fallback to configured online image
+        large_gif = config.get("panel_large_image")
+        if large_gif:
+            try:
+                embed.set_image(url=large_gif)
+            except Exception:
+                pass
+
+    thumb_gif = config.get("panel_thumbnail")
+    if thumb_gif:
+        try:
+            embed.set_thumbnail(url=thumb_gif)
+        except Exception:
+            pass
+
+    embed.add_field(
+        name="✨ Today's Featured Activation",
+        value="**Classic Hits Wave (Other Games + EA)**",
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Before You Start",
+        value=(
+            "• Read the #guide channel.\n"
+            "• Download clean game files from resources or the downloader.\n\n"
+            "**Follow the steps in the correct order:**\n"
+            "1. Extract the contents of the file (use WinRAR or 7zip) into the game folder.\n"
+            "2. Replace all files (ensure the folders match).\n"
+            "3. Launch the game using the .exe file."
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="How to Request",
+        value=(
+            "Once panels open, select your game from the menu below.\n\n"
+            "• Use the dropdowns below to pick the correct game/section.\n"
+            "• The panel will provide an activation link automatically after processing."
+        ),
+        inline=False,
+    )
+
+    embed.add_field(
+        name="Important",
+        value=(
+            "Make sure to read all notes above before proceeding.\n"
+            "Tokens may expire; download and run the activation immediately (within the time limit)."
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(text="Self-Serve Activation | Follow instructions carefully")
+    return (embed, attachment_name)

@@ -12,7 +12,8 @@ from utils.database import (
     add_panel, get_panels, add_ticket_member, remove_ticket_member,
     get_user_tickets, get_channel_ticket
 )
-from utils.embed import create_panel_embed, create_ticket_embed, create_closed_embed, create_info_embed
+from utils.embed import create_panel_embed, create_panel_embed_single, create_ticket_embed, create_closed_embed, create_info_embed
+import os
 from utils.checks import is_admin, is_staff, is_ticket_channel
 
 logger = logging.getLogger(__name__)
@@ -400,7 +401,12 @@ class Tickets(commands.Cog):
                     await ctx.send("❗ Panel đã tồn tại trong kênh này.")
                     return
             _panels_creation_in_progress.add(channel_id)
-            embeds = create_panel_embed()
+            # Prefer a local attachment if available (images/steam.png). Falls back to online embeds.
+            local_image_path = os.path.join('images', 'steam.png')
+            if os.path.exists(local_image_path):
+                panel_payload = create_panel_embed_single('steam.png')
+            else:
+                panel_payload = create_panel_embed()
             view = PanelView()
             # try to find existing panel messages authored by the bot (avoid duplicates)
             existing = []
@@ -414,29 +420,56 @@ class Tickets(commands.Cog):
                 existing = []
 
             if existing:
-                # keep first, edit it and remove extras
-                message = existing[0]
-                try:
-                    if isinstance(embeds, list):
-                        await message.edit(embeds=embeds, view=view)
-                    else:
-                        await message.edit(embed=embeds, view=view)
-                except Exception:
-                    pass
-                try:
-                    await message.pin()
-                except Exception:
-                    pass
-                for m in existing[1:]:
+                # If using a local-attachment panel, replace all existing panels with a single new message
+                if isinstance(panel_payload, tuple):
+                    for m in existing:
+                        try:
+                            await m.delete()
+                        except Exception:
+                            pass
+                    embed_obj, fname = panel_payload
+                    file_path = os.path.join('images', fname) if fname else None
                     try:
-                        await m.delete()
+                        if file_path and os.path.exists(file_path):
+                            f = discord.File(file_path, filename=fname)
+                            message = await ctx.channel.send(embed=embed_obj, file=f, view=view)
+                        else:
+                            message = await ctx.channel.send(embed=embed_obj, view=view)
+                    except Exception:
+                        message = existing[0]
+                else:
+                    # keep first, edit it and remove extras
+                    message = existing[0]
+                    try:
+                        if isinstance(panel_payload, list):
+                            await message.edit(embeds=panel_payload, view=view)
+                        else:
+                            await message.edit(embed=panel_payload, view=view)
                     except Exception:
                         pass
+                    try:
+                        await message.pin()
+                    except Exception:
+                        pass
+                    for m in existing[1:]:
+                        try:
+                            await m.delete()
+                        except Exception:
+                            pass
             else:
-                if isinstance(embeds, list):
-                    message = await ctx.channel.send(embeds=embeds, view=view)
+                if isinstance(panel_payload, tuple):
+                    embed_obj, fname = panel_payload
+                    file_path = os.path.join('images', fname) if fname else None
+                    if file_path and os.path.exists(file_path):
+                        f = discord.File(file_path, filename=fname)
+                        message = await ctx.channel.send(embed=embed_obj, file=f, view=view)
+                    else:
+                        message = await ctx.channel.send(embed=embed_obj, view=view)
                 else:
-                    message = await ctx.channel.send(embed=embeds, view=view)
+                    if isinstance(panel_payload, list):
+                        message = await ctx.channel.send(embeds=panel_payload, view=view)
+                    else:
+                        message = await ctx.channel.send(embed=panel_payload, view=view)
             try:
                 await message.pin()
             except discord.errors.HTTPException:
@@ -513,7 +546,12 @@ class Tickets(commands.Cog):
                     await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
                     return
             _panels_creation_in_progress.add(channel_id)
-            embeds = create_panel_embed()
+            # Prefer a local attachment if available (images/steam.png). Falls back to online embeds.
+            local_image_path = os.path.join('images', 'steam.png')
+            if os.path.exists(local_image_path):
+                panel_payload = create_panel_embed_single('steam.png')
+            else:
+                panel_payload = create_panel_embed()
 
             # Tạo view với dropdown
             view = PanelView()
@@ -530,28 +568,55 @@ class Tickets(commands.Cog):
                 existing = []
 
             if existing:
-                message = existing[0]
-                try:
-                    if isinstance(embeds, list):
-                        await message.edit(embeds=embeds, view=view)
-                    else:
-                        await message.edit(embed=embeds, view=view)
-                except Exception:
-                    pass
-                try:
-                    await message.pin()
-                except Exception:
-                    pass
-                for m in existing[1:]:
+                # If using a local-attachment panel, replace all existing panels with a single new message
+                if isinstance(panel_payload, tuple):
+                    for m in existing:
+                        try:
+                            await m.delete()
+                        except Exception:
+                            pass
+                    embed_obj, fname = panel_payload
+                    file_path = os.path.join('images', fname) if fname else None
                     try:
-                        await m.delete()
+                        if file_path and os.path.exists(file_path):
+                            f = discord.File(file_path, filename=fname)
+                            message = await interaction.channel.send(embed=embed_obj, file=f, view=view)
+                        else:
+                            message = await interaction.channel.send(embed=embed_obj, view=view)
+                    except Exception:
+                        message = existing[0]
+                else:
+                    message = existing[0]
+                    try:
+                        if isinstance(panel_payload, list):
+                            await message.edit(embeds=panel_payload, view=view)
+                        else:
+                            await message.edit(embed=panel_payload, view=view)
                     except Exception:
                         pass
+                    try:
+                        await message.pin()
+                    except Exception:
+                        pass
+                    for m in existing[1:]:
+                        try:
+                            await m.delete()
+                        except Exception:
+                            pass
             else:
-                if isinstance(embeds, list):
-                    message = await interaction.channel.send(embeds=embeds, view=view)
+                if isinstance(panel_payload, tuple):
+                    embed_obj, fname = panel_payload
+                    file_path = os.path.join('images', fname) if fname else None
+                    if file_path and os.path.exists(file_path):
+                        f = discord.File(file_path, filename=fname)
+                        message = await interaction.channel.send(embed=embed_obj, file=f, view=view)
+                    else:
+                        message = await interaction.channel.send(embed=embed_obj, view=view)
                 else:
-                    message = await interaction.channel.send(embed=embeds, view=view)
+                    if isinstance(panel_payload, list):
+                        message = await interaction.channel.send(embeds=panel_payload, view=view)
+                    else:
+                        message = await interaction.channel.send(embed=panel_payload, view=view)
 
             # PIN message
             try:

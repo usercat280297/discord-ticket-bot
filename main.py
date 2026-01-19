@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Load environment
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PREFIX = os.getenv('PREFIX', '!')
 
 # Load config

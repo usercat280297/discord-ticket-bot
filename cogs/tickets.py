@@ -387,7 +387,35 @@ class Tickets(commands.Cog):
             _panels_creation_in_progress.add(channel_id)
             embed = create_panel_embed()
             view = PanelView()
-            message = await ctx.channel.send(embed=embed, view=view)
+            # try to find existing panel messages authored by the bot (avoid duplicates)
+            existing = []
+            try:
+                async for m in ctx.channel.history(limit=200):
+                    if m.author == ctx.bot.user and m.embeds:
+                        title = m.embeds[0].title if m.embeds and len(m.embeds) > 0 else ''
+                        if title in ("Self-Serve Activation", "🎫 Hệ Thống Ticket Hỗ Trợ", "🎫 Mở Ticket"):
+                            existing.append(m)
+            except Exception:
+                existing = []
+
+            if existing:
+                # keep first, edit it and remove extras
+                message = existing[0]
+                try:
+                    await message.edit(embed=embed, view=view)
+                except Exception:
+                    pass
+                try:
+                    await message.pin()
+                except Exception:
+                    pass
+                for m in existing[1:]:
+                    try:
+                        await m.delete()
+                    except Exception:
+                        pass
+            else:
+                message = await ctx.channel.send(embed=embed, view=view)
             try:
                 await message.pin()
             except discord.errors.HTTPException:
@@ -459,7 +487,34 @@ class Tickets(commands.Cog):
             # Tạo view với dropdown
             view = PanelView()
 
-            message = await interaction.channel.send(embed=embed, view=view)
+            # try to find existing panel messages authored by the bot (avoid duplicates)
+            existing = []
+            try:
+                async for m in interaction.channel.history(limit=200):
+                    if m.author == interaction.client.user and m.embeds:
+                        title = m.embeds[0].title if m.embeds and len(m.embeds) > 0 else ''
+                        if title in ("Self-Serve Activation", "🎫 Hệ Thống Ticket Hỗ Trợ", "🎫 Mở Ticket"):
+                            existing.append(m)
+            except Exception:
+                existing = []
+
+            if existing:
+                message = existing[0]
+                try:
+                    await message.edit(embed=embed, view=view)
+                except Exception:
+                    pass
+                try:
+                    await message.pin()
+                except Exception:
+                    pass
+                for m in existing[1:]:
+                    try:
+                        await m.delete()
+                    except Exception:
+                        pass
+            else:
+                message = await interaction.channel.send(embed=embed, view=view)
 
             # PIN message
             try:

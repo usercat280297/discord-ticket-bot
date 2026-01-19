@@ -4,7 +4,6 @@
   "admin_role": "Admin",
   "ticket_category": "Tickets",
   "ticket_prefix": "ticket",
-  "panel_channel_id": 1445495389938782380,
   "panel_categories": [
     "🎮 Hỗ trợ Game",
     "💳 Hỗ trợ Account",
@@ -15,5 +14,6 @@
   "ticket_color": 5814783,
   "auto_close_delay": 5,
   "auto_close_inactive": 1800,
-  "max_user_tickets": 3
+  "max_user_tickets": 3,
+  "panel_channel_id": 1445495389938782380
 }

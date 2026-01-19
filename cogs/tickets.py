@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import json
 import random
 import string
@@ -324,12 +325,11 @@ class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    @commands.command(name='setup', description='Tạo panel ticket chính')
+    @app_commands.command(name='setup', description='Tạo panel ticket chính')
     @is_admin()
-    async def setup(self, ctx):
+    async def setup(self, interaction: discord.Interaction):
         """
         Tạo panel ticket chính với dropdown
-        Cách dùng: !setup
         """
         try:
             embed = create_panel_embed()
@@ -337,7 +337,7 @@ class Tickets(commands.Cog):
             # Tạo view với dropdown
             view = PanelView()
             
-            message = await ctx.send(embed=embed, view=view)
+            message = await interaction.channel.send(embed=embed, view=view)
             
             # PIN message
             try:
@@ -347,22 +347,22 @@ class Tickets(commands.Cog):
             
             # Lưu panel ID vào config
             config = load_config()
-            config["panel_channel_id"] = ctx.channel.id
+            config["panel_channel_id"] = interaction.channel.id
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
             
             embed_success = discord.Embed(
                 title="✅ Panel Ticket Đã Tạo",
-                description=f"📍 Kênh: {ctx.channel.mention}\n\n"
+                description=f"📍 Kênh: {interaction.channel.mention}\n\n"
                            f"✨ Người dùng có thể chọn loại ticket từ dropdown",
                 color=discord.Color.green()
             )
-            await ctx.send(embed=embed_success)
-            logger.info(f"Panel created in {ctx.guild} | Channel: {ctx.channel.id}")
+            await interaction.response.send_message(embed=embed_success)
+            logger.info(f"Panel created in {interaction.guild} | Channel: {interaction.channel.id}")
             
         except Exception as e:
             logger.error(f"Error in setup: {e}")
-            await ctx.send(f"❌ Lỗi: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
     
     @commands.command(name='close', description='Đóng ticket')
     @is_ticket_channel()

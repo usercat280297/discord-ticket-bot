@@ -29,7 +29,18 @@ class Events(commands.Cog):
         """Xử lý interactions (buttons, selects)"""
         # Logging interactions
         if interaction.type == discord.InteractionType.component:
-            logger.info(f"Component interaction: {interaction.custom_id} from {interaction.user}")
+            # `custom_id` is available in interaction.data for component interactions
+            try:
+                cid = None
+                if hasattr(interaction, 'custom_id'):
+                    cid = interaction.custom_id
+                else:
+                    data = getattr(interaction, 'data', None)
+                    if isinstance(data, dict):
+                        cid = data.get('custom_id') or data.get('customId')
+                logger.info(f"Component interaction: {cid} from {interaction.user}")
+            except Exception:
+                logger.info(f"Component interaction (no custom_id available) from {interaction.user}")
 
 async def setup(bot):
     await bot.add_cog(Events(bot))

@@ -7,6 +7,9 @@ DATA_FILE = "data/tickets.json"
 
 def ensure_data_file():
     """Đảm bảo file data tồn tại"""
+    directory = os.path.dirname(DATA_FILE)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
     if not os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'w') as f:
             json.dump({"panels": [], "tickets": {}, "closed_tickets": []}, f, indent=2)

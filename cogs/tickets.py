@@ -359,7 +359,10 @@ class Tickets(commands.Cog):
             channel_id = ctx.channel.id
             # prevent concurrent duplicate creations
             if channel_id in _panels_creation_in_progress:
-                await ctx.send("❗ Panel đang được tạo — vui lòng chờ giây lát.")
+                try:
+                    await ctx.author.send("❗ Panel đang được tạo — vui lòng chờ giây lát.")
+                except Exception:
+                    await ctx.send("❗ Panel đang được tạo — vui lòng chờ giây lát.", delete_after=6)
                 return
             config = load_config()
             if config.get("panel_channel_id") == channel_id:
@@ -386,7 +389,11 @@ class Tickets(commands.Cog):
                             logger.debug("suppressing duplicate panel-exists message for channel %s", channel_id)
                             return
                         _last_panel_notification[channel_id] = now
-                        await ctx.send("❗ Panel đã tồn tại trong kênh này.")
+                        # Notify the command caller privately to avoid spamming the channel
+                        try:
+                            await ctx.author.send("❗ Panel đã tồn tại trong kênh này.")
+                        except Exception:
+                            await ctx.send("❗ Panel đã tồn tại trong kênh này.", delete_after=6)
                         return
                 except Exception:
                     # If checking pins fails, just notify once
@@ -440,7 +447,17 @@ class Tickets(commands.Cog):
                            f"✨ Người dùng có thể chọn loại ticket từ dropdown",
                 color=discord.Color.green()
             )
-            await ctx.send(embed=embed_success)
+            # Send success notice privately when possible to avoid cluttering channel
+            try:
+                await ctx.author.send(embed=embed_success)
+                # react in channel as lightweight confirmation
+                try:
+                    await ctx.message.add_reaction("✅")
+                except Exception:
+                    pass
+            except Exception:
+                # fallback to a short public confirmation that auto-deletes
+                await ctx.send(embed=embed_success, delete_after=8)
             logger.info(f"Panel created in {ctx.guild} | Channel: {ctx.channel.id}")
             # done
             _panels_creation_in_progress.discard(channel_id)
@@ -542,7 +559,8 @@ class Tickets(commands.Cog):
                            f"✨ Người dùng có thể chọn loại ticket từ dropdown",
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embed_success)
+            # Reply ephemerally to the command invoker to avoid public spam
+            await interaction.response.send_message(embed=embed_success, ephemeral=True)
             logger.info(f"Panel created in {interaction.guild} | Channel: {interaction.channel.id}")
             _panels_creation_in_progress.discard(channel_id)
             _last_panel_notification.pop(channel_id, None)

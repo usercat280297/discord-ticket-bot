@@ -95,7 +95,9 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.MissingRequiredArgument):
         await safe_send(f"❌ Thiếu argument: {error.param.name}")
     elif isinstance(error, commands.CommandNotFound):
-        await safe_send("❌ Lệnh không tồn tại!")
+        # Ignore command not found to avoid spam in channels when users type unknown text
+        logger.debug(f"Command not found: {getattr(ctx, 'message', None) and ctx.message.content}")
+        return
     else:
         logger.error(f"Command error: {error}")
         await safe_send(f"❌ Có lỗi xảy ra: {error}")

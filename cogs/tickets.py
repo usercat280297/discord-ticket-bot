@@ -326,7 +326,6 @@ class Tickets(commands.Cog):
         self.bot = bot
     
     @app_commands.command(name='setup', description='Tạo panel ticket chính')
-    @is_admin()
     async def setup(self, interaction: discord.Interaction):
         """
         Tạo panel ticket chính với dropdown

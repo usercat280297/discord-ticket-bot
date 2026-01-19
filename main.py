@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from aiohttp import web
 import os
 import json
 from dotenv import load_dotenv
@@ -62,19 +63,55 @@ async def before_invoke(ctx):
 @bot.event
 async def on_command_error(ctx, error):
     """Xử lý lỗi command"""
+    async def safe_send(content: str):
+        try:
+            await ctx.send(content)
+        except discord.Forbidden:
+            logger.warning(f"Missing permissions to send message in channel {getattr(ctx.channel, 'id', 'unknown')}")
+        except discord.HTTPException as e:
+            logger.error(f"Failed to send message: {e}")
+
     if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ Bạn không có quyền sử dụng lệnh này!")
+        await safe_send("❌ Bạn không có quyền sử dụng lệnh này!")
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"❌ Thiếu argument: {error.param.name}")
+        await safe_send(f"❌ Thiếu argument: {error.param.name}")
     elif isinstance(error, commands.CommandNotFound):
-        await ctx.send("❌ Lệnh không tồn tại!")
+        await safe_send("❌ Lệnh không tồn tại!")
     else:
         logger.error(f"Command error: {error}")
-        await ctx.send(f"❌ Có lỗi xảy ra: {error}")
+        await safe_send(f"❌ Có lỗi xảy ra: {error}")
 
 async def main():
     """Main function"""
     async with bot:
+        # Start a minimal web server bound to the PORT Render provides so the platform
+        # detects an open port. If no PORT is set, skip starting the server.
+        async def run_health_server():
+            port = os.getenv('PORT')
+            if not port:
+                logger.info("No PORT env var set, skipping web server start")
+                return
+            try:
+                port_int = int(port)
+            except ValueError:
+                logger.warning(f"Invalid PORT value: {port}")
+                return
+
+            app = web.Application()
+            async def handle_root(request):
+                return web.Response(text="OK")
+
+            app.router.add_get('/', handle_root)
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, '0.0.0.0', port_int)
+            await site.start()
+            logger.info(f"Health web server running on port {port_int}")
+
+        # Start health server as a background task
+        import asyncio as _asyncio
+        _asyncio.create_task(run_health_server())
+
         await load_cogs()
         await bot.start(TOKEN)
 

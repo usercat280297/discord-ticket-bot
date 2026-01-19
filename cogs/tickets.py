@@ -400,7 +400,7 @@ class Tickets(commands.Cog):
                     await ctx.send("❗ Panel đã tồn tại trong kênh này.")
                     return
             _panels_creation_in_progress.add(channel_id)
-            embed = create_panel_embed()
+            embeds = create_panel_embed()
             view = PanelView()
             # try to find existing panel messages authored by the bot (avoid duplicates)
             existing = []
@@ -417,7 +417,10 @@ class Tickets(commands.Cog):
                 # keep first, edit it and remove extras
                 message = existing[0]
                 try:
-                    await message.edit(embed=embed, view=view)
+                    if isinstance(embeds, list):
+                        await message.edit(embeds=embeds, view=view)
+                    else:
+                        await message.edit(embed=embeds, view=view)
                 except Exception:
                     pass
                 try:
@@ -430,7 +433,10 @@ class Tickets(commands.Cog):
                     except Exception:
                         pass
             else:
-                message = await ctx.channel.send(embed=embed, view=view)
+                if isinstance(embeds, list):
+                    message = await ctx.channel.send(embeds=embeds, view=view)
+                else:
+                    message = await ctx.channel.send(embed=embeds, view=view)
             try:
                 await message.pin()
             except discord.errors.HTTPException:
@@ -507,7 +513,7 @@ class Tickets(commands.Cog):
                     await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
                     return
             _panels_creation_in_progress.add(channel_id)
-            embed = create_panel_embed()
+            embeds = create_panel_embed()
 
             # Tạo view với dropdown
             view = PanelView()
@@ -526,7 +532,10 @@ class Tickets(commands.Cog):
             if existing:
                 message = existing[0]
                 try:
-                    await message.edit(embed=embed, view=view)
+                    if isinstance(embeds, list):
+                        await message.edit(embeds=embeds, view=view)
+                    else:
+                        await message.edit(embed=embeds, view=view)
                 except Exception:
                     pass
                 try:
@@ -539,7 +548,10 @@ class Tickets(commands.Cog):
                     except Exception:
                         pass
             else:
-                message = await interaction.channel.send(embed=embed, view=view)
+                if isinstance(embeds, list):
+                    message = await interaction.channel.send(embeds=embeds, view=view)
+                else:
+                    message = await interaction.channel.send(embed=embeds, view=view)
 
             # PIN message
             try:

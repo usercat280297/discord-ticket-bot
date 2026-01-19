@@ -6,42 +6,52 @@ def load_config() -> dict:
     with open('config.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def create_panel_embed() -> discord.Embed:
-    """Tạo embed panel ticket chính, styled to match the provided screenshot.
+def create_panel_embed() -> list:
+    """Return two embeds: a banner embed (large image) and a content embed.
 
-    Uses optional config keys `panel_large_image` and `panel_thumbnail` if present,
-    otherwise falls back to the GIF URLs provided by the user.
+    The first embed is a full-width banner image to create a large visual header.
+    The second embed contains the thumbnail, title, fields and explanatory text.
+    Returns a list of `discord.Embed` objects.
     """
     config = load_config()
-    # default GIFs (user-provided)
     large_gif = config.get(
         "panel_large_image",
-        "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExYms2ZXBpYnhlaXI3bmdsZnNxdHhyc3E2ejhjaTZkZGU1eDhseXg2ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/EnrH0xdlmT5uBZ9BCe/giphy.gif"
+        "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExYms2ZXBpYnhlaXI3bmdsZnNxdHhyc3E2ejhjaTZkZGU1eDhseXg2ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/EnrH0xdlmT5uBZ9BCe/giphy.gif",
     )
     thumb_gif = config.get(
         "panel_thumbnail",
-        "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDBhc3htcDk3YnkwNTg2ZmptYjdrZnZ2djc0OW9ybXVoZWxpczV0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/6Eui7Hxv9mKWPt5iRG/giphy.gif"
+        "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDBhc3htcDk3YnkwNTg2ZmptYjdrZnZ2djc0OW9ybXVoZWxpczV0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/6Eui7Hxv9mKWPt5iRG/giphy.gif",
     )
 
     color = config.get("ticket_color", 5814783)
-    embed = discord.Embed(
+
+    # Banner embed: large image only (no title) to create a wide visual
+    banner = discord.Embed(color=color)
+    try:
+        banner.set_image(url=large_gif)
+    except Exception:
+        pass
+
+    # Content embed: thumbnail + structured fields
+    content = discord.Embed(
         title="Self-Serve Activation",
         description="You can use this panel to activate automatically.",
         color=color,
     )
 
-    # big featured field (mimic layout in screenshot)
-    embed.add_field(
+    content.set_thumbnail(url=thumb_gif)
+
+    content.add_field(
         name="✨ Today's Featured Activation",
         value="**Classic Hits Wave (Other Games + EA)**",
         inline=False,
     )
 
-    embed.add_field(
+    content.add_field(
         name="Before You Start",
         value=(
             "• Read the #guide channel.\n"
-            "• Download clean game files from `resources` or the `downloader`.\n\n"
+            "• Download clean game files from resources or the downloader.\n\n"
             "**Follow the steps in the correct order:**\n"
             "1. Extract the contents of the file (use WinRAR or 7zip) into the game folder.\n"
             "2. Replace all files (ensure the folders match).\n"
@@ -50,7 +60,7 @@ def create_panel_embed() -> discord.Embed:
         inline=False,
     )
 
-    embed.add_field(
+    content.add_field(
         name="How to Request",
         value=(
             "Once panels open, select your game from the menu below.\n\n"
@@ -60,8 +70,7 @@ def create_panel_embed() -> discord.Embed:
         inline=False,
     )
 
-    # example note / small footer inside embed
-    embed.add_field(
+    content.add_field(
         name="Important",
         value=(
             "Make sure to read all notes above before proceeding.\n"
@@ -70,18 +79,9 @@ def create_panel_embed() -> discord.Embed:
         inline=False,
     )
 
-    # Visuals
-    try:
-        embed.set_image(url=large_gif)
-    except Exception:
-        pass
-    try:
-        embed.set_thumbnail(url=thumb_gif)
-    except Exception:
-        pass
+    content.set_footer(text="Self-Serve Activation | Follow instructions carefully")
 
-    embed.set_footer(text="Self-Serve Activation | Follow instructions carefully")
-    return embed
+    return [banner, content]
 
 def create_ticket_embed(user: discord.User, category: str) -> discord.Embed:
     """Tạo embed ticket welcome"""

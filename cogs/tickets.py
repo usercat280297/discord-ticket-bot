@@ -324,32 +324,84 @@ class CloseTicketButton(discord.ui.Button):
 class Tickets(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-    
-    @app_commands.command(name='setup', description='Tạo panel ticket chính')
-    async def setup(self, interaction: discord.Interaction):
-        """
-        Tạo panel ticket chính với dropdown
-        """
+
+    @commands.group(name='ticket', invoke_without_command=True)
+    async def ticket_cmd(self, ctx):
+        """Prefix group `!ticket` -> shows help if no subcommand"""
         try:
+            embed = create_info_embed(
+                title="📚 Ticket Help",
+                description="Sử dụng `!ticket setup` để tạo panel hoặc `/ticket help` để xem hướng dẫn",
+                Panel="Sử dụng `!ticket setup` để tạo panel ticket (dropdown) trong kênh hiện tại.",
+                Commands="`!ticket setup`, `!ticket close`, `!ticket claim`, `!ticket add @user`, `!ticket remove @user`, `!ticket transfer @user`, `!ticket mytickets`",
+            )
+            await ctx.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error in prefix ticket help: {e}")
+            await ctx.send(f"❌ Lỗi: {e}")
+
+    @ticket_cmd.command(name='setup')
+    async def ticket_cmd_setup(self, ctx):
+        """Prefix `!ticket setup` - tạo panel ticket"""
+        try:
+            config = load_config()
+            if config.get("panel_channel_id") == ctx.channel.id:
+                await ctx.send("❗ Panel đã tồn tại trong kênh này.")
+                return
             embed = create_panel_embed()
-            
+            view = PanelView()
+            message = await ctx.channel.send(embed=embed, view=view)
+            try:
+                await message.pin()
+            except discord.errors.HTTPException:
+                pass
+
+            config = load_config()
+            config["panel_channel_id"] = ctx.channel.id
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+
+            embed_success = discord.Embed(
+                title="✅ Panel Ticket Đã Tạo",
+                description=f"📍 Kênh: {ctx.channel.mention}\n\n"
+                           f"✨ Người dùng có thể chọn loại ticket từ dropdown",
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed_success)
+            logger.info(f"Panel created in {ctx.guild} | Channel: {ctx.channel.id}")
+
+        except Exception as e:
+            logger.error(f"Error in prefix ticket setup: {e}")
+            await ctx.send(f"❌ Lỗi: {e}")
+    ticket = app_commands.Group(name="ticket", description="Ticket commands")
+
+    @ticket.command(name='setup', description='Tạo panel ticket chính')
+    async def ticket_setup(self, interaction: discord.Interaction):
+        """Tạo panel ticket chính với dropdown (subcommand `/ticket setup`)"""
+        try:
+            config = load_config()
+            if config.get("panel_channel_id") == interaction.channel.id:
+                await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
+                return
+            embed = create_panel_embed()
+
             # Tạo view với dropdown
             view = PanelView()
-            
+
             message = await interaction.channel.send(embed=embed, view=view)
-            
+
             # PIN message
             try:
                 await message.pin()
             except discord.errors.HTTPException:
                 pass
-            
+
             # Lưu panel ID vào config
             config = load_config()
             config["panel_channel_id"] = interaction.channel.id
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-            
+
             embed_success = discord.Embed(
                 title="✅ Panel Ticket Đã Tạo",
                 description=f"📍 Kênh: {interaction.channel.mention}\n\n"
@@ -358,9 +410,248 @@ class Tickets(commands.Cog):
             )
             await interaction.response.send_message(embed=embed_success)
             logger.info(f"Panel created in {interaction.guild} | Channel: {interaction.channel.id}")
-            
+
         except Exception as e:
-            logger.error(f"Error in setup: {e}")
+            logger.error(f"Error in /ticket setup: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='help', description='Hiển thị hướng dẫn sử dụng ticket')
+    async def ticket_help(self, interaction: discord.Interaction):
+        """Hiển thị thông tin và hướng dẫn sử dụng hệ thống ticket (subcommand `/ticket help`)"""
+        try:
+            embed = create_info_embed(
+                title="📚 Hướng Dẫn Sử Dụng Ticket",
+                description="Dưới đây là các lệnh và mô tả",
+                Panel="Sử dụng `/ticket setup` để tạo panel ticket (dropdown) trong kênh hiện tại.",
+                Commands="`/close`, `!claim`, `!add @user`, `!remove @user`, `!transfer @user`, `!mytickets`",
+                Buttons="Người dùng có thể bấm ✅ It Works!, 🆘 Need Help, hoặc 🔒 Đóng Ticket trong channel ticket."
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in /ticket help: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='close', description='Đóng ticket')
+    async def ticket_close(self, interaction: discord.Interaction, reason: Optional[str] = "Không có lý do"):
+        """Đóng ticket (subcommand `/ticket close`)"""
+        try:
+            config = load_config()
+            if not interaction.channel or not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            if not interaction.channel.name.startswith(config.get("ticket_prefix", "ticket")):
+                await interaction.response.send_message("❌ Lệnh này chỉ có thể sử dụng trong ticket channel!", ephemeral=True)
+                return
+
+            # staff check
+            staff_role = discord.utils.get(interaction.user.roles, name=config.get("staff_role", "Staff"))
+            admin_role = discord.utils.get(interaction.user.roles, name=config.get("admin_role", "Admin"))
+            if not staff_role and not admin_role:
+                await interaction.response.send_message("❌ Bạn không có quyền sử dụng lệnh này!", ephemeral=True)
+                return
+
+            ticket_id = get_channel_ticket(interaction.channel.id)
+            if not ticket_id:
+                await interaction.response.send_message("❌ Không tìm thấy ticket này!", ephemeral=True)
+                return
+
+            ticket = get_ticket(ticket_id)
+            if not ticket:
+                await interaction.response.send_message("❌ Ticket không tồn tại!", ephemeral=True)
+                return
+
+            user = interaction.guild.get_member(ticket["user_id"]) or await self.bot.fetch_user(ticket["user_id"])
+            embed = create_closed_embed(user, interaction.user, reason)
+            await interaction.response.send_message(embed=embed)
+
+            # Gửi DM cho user
+            await send_ticket_closed_dm(user_id=ticket["user_id"], ticket_id=ticket_id, reason=f"🔒 {reason}", bot=self.bot)
+
+            # Update DB
+            close_ticket(ticket_id, interaction.user.id)
+
+            # Xóa channel sau 5 giây
+            await asyncio.sleep(5)
+            try:
+                await interaction.channel.delete()
+            except Exception:
+                pass
+
+            logger.info(f"Ticket closed via /ticket close: {ticket_id} by {interaction.user}")
+
+        except Exception as e:
+            logger.error(f"Error in /ticket close: {e}")
+            try:
+                await interaction.response.send_message(f"❌ Lỗi: {e}")
+            except Exception:
+                pass
+
+    @ticket.command(name='claim', description='Claim ticket')
+    async def ticket_claim(self, interaction: discord.Interaction):
+        """Claim ticket (subcommand `/ticket claim`)"""
+        try:
+            config = load_config()
+            if not interaction.channel or not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            staff_role = discord.utils.get(interaction.user.roles, name=config.get("staff_role", "Staff"))
+            admin_role = discord.utils.get(interaction.user.roles, name=config.get("admin_role", "Admin"))
+            if not staff_role and not admin_role:
+                await interaction.response.send_message("❌ Bạn không có quyền sử dụng lệnh này!", ephemeral=True)
+                return
+
+            ticket_id = get_channel_ticket(interaction.channel.id)
+            if not ticket_id:
+                await interaction.response.send_message("❌ Không tìm thấy ticket này!", ephemeral=True)
+                return
+
+            ticket = get_ticket(ticket_id)
+            if ticket and ticket.get("claimed_by"):
+                claimer = interaction.guild.get_member(ticket["claimed_by"]) if interaction.guild else None
+                await interaction.response.send_message(f"❌ Ticket đã được claim bởi {claimer.mention if claimer else 'someone'}", ephemeral=True)
+                return
+
+            claim_ticket(ticket_id, interaction.user.id)
+            embed = discord.Embed(title="🎯 Ticket Claimed", description=f"{interaction.user.mention} đã claim ticket này", color=discord.Color.green())
+            await interaction.response.send_message(embed=embed)
+            logger.info(f"Ticket claimed via /ticket claim: {ticket_id} by {interaction.user}")
+
+        except Exception as e:
+            logger.error(f"Error in /ticket claim: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='add', description='Thêm user vào ticket')
+    async def ticket_add(self, interaction: discord.Interaction, user: discord.User):
+        """Thêm user vào ticket (subcommand `/ticket add @user`)"""
+        try:
+            config = load_config()
+            if not interaction.channel or not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            staff_role = discord.utils.get(interaction.user.roles, name=config.get("staff_role", "Staff"))
+            admin_role = discord.utils.get(interaction.user.roles, name=config.get("admin_role", "Admin"))
+            if not staff_role and not admin_role:
+                await interaction.response.send_message("❌ Bạn không có quyền sử dụng lệnh này!", ephemeral=True)
+                return
+
+            ticket_id = get_channel_ticket(interaction.channel.id)
+            if not ticket_id:
+                await interaction.response.send_message("❌ Không tìm thấy ticket này!", ephemeral=True)
+                return
+
+            member = interaction.guild.get_member(user.id)
+            if not member:
+                await interaction.response.send_message("❌ User không trong server!", ephemeral=True)
+                return
+
+            await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+            add_ticket_member(ticket_id, user.id)
+
+            embed = discord.Embed(description=f"✅ {user.mention} đã được thêm vào ticket", color=discord.Color.green())
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error in /ticket add: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='remove', description='Xóa user khỏi ticket')
+    async def ticket_remove(self, interaction: discord.Interaction, user: discord.User):
+        """Xóa user khỏi ticket (subcommand `/ticket remove @user`)"""
+        try:
+            config = load_config()
+            if not interaction.channel or not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            staff_role = discord.utils.get(interaction.user.roles, name=config.get("staff_role", "Staff"))
+            admin_role = discord.utils.get(interaction.user.roles, name=config.get("admin_role", "Admin"))
+            if not staff_role and not admin_role:
+                await interaction.response.send_message("❌ Bạn không có quyền sử dụng lệnh này!", ephemeral=True)
+                return
+
+            ticket_id = get_channel_ticket(interaction.channel.id)
+            if not ticket_id:
+                await interaction.response.send_message("❌ Không tìm thấy ticket này!", ephemeral=True)
+                return
+
+            member = interaction.guild.get_member(user.id)
+            if member:
+                await interaction.channel.set_permissions(member, overwrite=None)
+
+            remove_ticket_member(ticket_id, user.id)
+            embed = discord.Embed(description=f"✅ {user.mention} đã bị xóa khỏi ticket", color=discord.Color.orange())
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error in /ticket remove: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='transfer', description='Chuyển ticket cho user khác')
+    async def ticket_transfer(self, interaction: discord.Interaction, user: discord.User):
+        """Chuyển ticket cho user khác (subcommand `/ticket transfer @user`)"""
+        try:
+            config = load_config()
+            if not interaction.channel or not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            staff_role = discord.utils.get(interaction.user.roles, name=config.get("staff_role", "Staff"))
+            admin_role = discord.utils.get(interaction.user.roles, name=config.get("admin_role", "Admin"))
+            if not staff_role and not admin_role:
+                await interaction.response.send_message("❌ Bạn không có quyền sử dụng lệnh này!", ephemeral=True)
+                return
+
+            ticket_id = get_channel_ticket(interaction.channel.id)
+            if not ticket_id:
+                await interaction.response.send_message("❌ Không tìm thấy ticket này!", ephemeral=True)
+                return
+
+            ticket = get_ticket(ticket_id)
+            old_user = interaction.guild.get_member(ticket["user_id"]) if ticket else None
+            if old_user:
+                await interaction.channel.set_permissions(old_user, overwrite=None)
+
+            member = interaction.guild.get_member(user.id)
+            if not member:
+                await interaction.response.send_message("❌ User không trong server!", ephemeral=True)
+                return
+
+            await interaction.channel.set_permissions(member, view_channel=True, send_messages=True, read_message_history=True)
+            update_ticket(ticket_id, user_id=user.id)
+
+            embed = discord.Embed(title="🔄 Ticket Transferred", description=f"Ticket đã được chuyển sang {user.mention}", color=discord.Color.blue())
+            await interaction.response.send_message(embed=embed)
+
+        except Exception as e:
+            logger.error(f"Error in /ticket transfer: {e}")
+            await interaction.response.send_message(f"❌ Lỗi: {e}")
+
+    @ticket.command(name='mytickets', description='Xem tickets của bạn')
+    async def ticket_mytickets(self, interaction: discord.Interaction):
+        """Xem tất cả tickets của user (subcommand `/ticket mytickets`)"""
+        try:
+            if not interaction.guild:
+                await interaction.response.send_message("❌ Lệnh chỉ dùng trong server.", ephemeral=True)
+                return
+
+            tickets = get_user_tickets(interaction.user.id, interaction.guild.id)
+            if not tickets:
+                await interaction.response.send_message("❌ Bạn không có ticket nào!", ephemeral=True)
+                return
+
+            embed = discord.Embed(title="🎫 Tickets Của Bạn", description=f"Bạn có **{len(tickets)}** ticket(s) đang mở", color=5814783)
+            for ticket in tickets:
+                channel = interaction.guild.get_channel(ticket["channel_id"])
+                claimed = "✅ Claimed" if ticket.get("claimed_by") else "⏳ Waiting"
+                embed.add_field(name=f"#{ticket['ticket_id']}", value=f"Channel: {channel.mention if channel else 'Deleted'}\nStatus: {claimed}", inline=False)
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error in /ticket mytickets: {e}")
             await interaction.response.send_message(f"❌ Lỗi: {e}")
     
     @commands.command(name='close', description='Đóng ticket')

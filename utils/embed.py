@@ -7,24 +7,80 @@ def load_config() -> dict:
         return json.load(f)
 
 def create_panel_embed() -> discord.Embed:
-    """Tạo embed panel ticket chính"""
+    """Tạo embed panel ticket chính, styled to match the provided screenshot.
+
+    Uses optional config keys `panel_large_image` and `panel_thumbnail` if present,
+    otherwise falls back to the GIF URLs provided by the user.
+    """
     config = load_config()
+    # default GIFs (user-provided)
+    large_gif = config.get(
+        "panel_large_image",
+        "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExYms2ZXBpYnhlaXI3bmdsZnNxdHhyc3E2ejhjaTZkZGU1eDhseXg2ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/EnrH0xdlmT5uBZ9BCe/giphy.gif"
+    )
+    thumb_gif = config.get(
+        "panel_thumbnail",
+        "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDBhc3htcDk3YnkwNTg2ZmptYjdrZnZ2djc0OW9ybXVoZWxpczV0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/6Eui7Hxv9mKWPt5iRG/giphy.gif"
+    )
+
+    color = config.get("ticket_color", 5814783)
     embed = discord.Embed(
-        title="🎫 Hệ Thống Ticket Hỗ Trợ",
-        description="Chào mừng đến với hệ thống hỗ trợ của chúng tôi!\n\n**Hãy chọn loại vấn đề của bạn từ dropdown bên dưới:**",
-        color=config.get("ticket_color", 5814783)
+        title="Self-Serve Activation",
+        description="You can use this panel to activate automatically.",
+        color=color,
     )
+
+    # big featured field (mimic layout in screenshot)
     embed.add_field(
-        name="📞 Thời Gian Phản Hồi",
-        value="• 🎮 Hỗ trợ Game: 10-30 phút\n• 💳 Hỗ trợ Account: 5-15 phút\n• 🐛 Báo Bug: 15-60 phút",
-        inline=False
+        name="✨ Today's Featured Activation",
+        value="**Classic Hits Wave (Other Games + EA)**",
+        inline=False,
     )
+
     embed.add_field(
-        name="💡 Lưu Ý",
-        value="• Hãy mô tả vấn đề chi tiết để staff hỗ trợ nhanh hơn\n• Cung cấp ảnh chụp màn hình nếu cần thiết\n• Chỉ mở 1 ticket cho mỗi vấn đề",
-        inline=False
+        name="Before You Start",
+        value=(
+            "• Read the #guide channel.\n"
+            "• Download clean game files from `resources` or the `downloader`.\n\n"
+            "**Follow the steps in the correct order:**\n"
+            "1. Extract the contents of the file (use WinRAR or 7zip) into the game folder.\n"
+            "2. Replace all files (ensure the folders match).\n"
+            "3. Launch the game using the .exe file."
+        ),
+        inline=False,
     )
-    embed.set_footer(text="Discord Ticket Bot | Luôn sẵn sàng hỗ trợ bạn ✨")
+
+    embed.add_field(
+        name="How to Request",
+        value=(
+            "Once panels open, select your game from the menu below.\n\n"
+            "• Use the dropdowns below to pick the correct game/section.\n"
+            "• The panel will provide an activation link automatically after processing."
+        ),
+        inline=False,
+    )
+
+    # example note / small footer inside embed
+    embed.add_field(
+        name="Important",
+        value=(
+            "Make sure to read all notes above before proceeding.\n"
+            "Tokens may expire; download and run the activation immediately (within the time limit)."
+        ),
+        inline=False,
+    )
+
+    # Visuals
+    try:
+        embed.set_image(url=large_gif)
+    except Exception:
+        pass
+    try:
+        embed.set_thumbnail(url=thumb_gif)
+    except Exception:
+        pass
+
+    embed.set_footer(text="Self-Serve Activation | Follow instructions carefully")
     return embed
 
 def create_ticket_embed(user: discord.User, category: str) -> discord.Embed:

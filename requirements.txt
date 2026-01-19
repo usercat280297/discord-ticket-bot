@@ -1,2 +1,25 @@
 discord.py==2.3.2
 python-dotenv==1.0.0
+PyNaCl==1.5.0
+
+# Web
+fastapi==0.95.2
+uvicorn[standard]==0.22.0
+
+# Storage
+boto3>=1.26.0
+
+# Database
+databases==0.9.0
+SQLAlchemy==2.0.20
+# sqlite async driver
+aiosqlite>=0.18.0
+
+# Cache / Queue
+aioredis==2.0.1
+rq==1.11
+
+# Images / vision
+Pillow>=10.0.1
+google-cloud-vision==3.5.0
+

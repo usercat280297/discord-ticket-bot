@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Guard to prevent duplicate panel creation when commands fire twice
 _panels_creation_in_progress = set()
+_last_panel_notification = {}
 def load_config():
     with open('config.json', 'r', encoding='utf-8') as f:
         return json.load(f)
@@ -346,6 +347,7 @@ class Tickets(commands.Cog):
     async def ticket_cmd_setup(self, ctx):
         """Prefix `!ticket setup` - tạo panel ticket"""
         try:
+            logger.debug("entering ticket_cmd_setup (prefix)")
             channel_id = ctx.channel.id
             # prevent concurrent duplicate creations
             if channel_id in _panels_creation_in_progress:
@@ -353,8 +355,35 @@ class Tickets(commands.Cog):
                 return
             config = load_config()
             if config.get("panel_channel_id") == channel_id:
-                await ctx.send("❗ Panel đã tồn tại trong kênh này.")
-                return
+                # verify the panel message still exists (pinned by bot). If not, clear stale config and continue
+                try:
+                    pins = await ctx.channel.pins()
+                    found = False
+                    for m in pins:
+                        if m.author == ctx.bot.user and (m.embeds and len(m.embeds) > 0):
+                            # consider this the panel
+                            found = True
+                            break
+                    if not found:
+                        logger.info("stale panel_channel_id found in config for channel %s — clearing", channel_id)
+                        config.pop("panel_channel_id", None)
+                        with open('config.json', 'w', encoding='utf-8') as f:
+                            json.dump(config, f, ensure_ascii=False, indent=2)
+                    else:
+                        # dedupe repeated notifications within short time window
+                        import time
+                        last = _last_panel_notification.get(channel_id)
+                        now = time.time()
+                        if last and now - last < 5:
+                            logger.debug("suppressing duplicate panel-exists message for channel %s", channel_id)
+                            return
+                        _last_panel_notification[channel_id] = now
+                        await ctx.send("❗ Panel đã tồn tại trong kênh này.")
+                        return
+                except Exception:
+                    # If checking pins fails, just notify once
+                    await ctx.send("❗ Panel đã tồn tại trong kênh này.")
+                    return
             _panels_creation_in_progress.add(channel_id)
             embed = create_panel_embed()
             view = PanelView()
@@ -379,6 +408,7 @@ class Tickets(commands.Cog):
             logger.info(f"Panel created in {ctx.guild} | Channel: {ctx.channel.id}")
             # done
             _panels_creation_in_progress.discard(channel_id)
+            _last_panel_notification.pop(channel_id, None)
 
         except Exception as e:
             logger.error(f"Error in prefix ticket setup: {e}")
@@ -390,14 +420,39 @@ class Tickets(commands.Cog):
     async def ticket_setup(self, interaction: discord.Interaction):
         """Tạo panel ticket chính với dropdown (subcommand `/ticket setup`)"""
         try:
+            logger.debug("entering ticket_setup (slash)")
             channel_id = interaction.channel.id if interaction.channel else None
             if channel_id in _panels_creation_in_progress:
                 await interaction.response.send_message("❗ Panel đang được tạo — vui lòng chờ giây lát.", ephemeral=True)
                 return
             config = load_config()
             if config.get("panel_channel_id") == channel_id:
-                await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
-                return
+                # verify pinned panel exists
+                try:
+                    pins = await interaction.channel.pins()
+                    found = False
+                    for m in pins:
+                        if m.author == interaction.client.user and (m.embeds and len(m.embeds) > 0):
+                            found = True
+                            break
+                    if not found:
+                        logger.info("stale panel_channel_id found in config for channel %s (slash) — clearing", channel_id)
+                        config.pop("panel_channel_id", None)
+                        with open('config.json', 'w', encoding='utf-8') as f:
+                            json.dump(config, f, ensure_ascii=False, indent=2)
+                    else:
+                        import time
+                        last = _last_panel_notification.get(channel_id)
+                        now = time.time()
+                        if last and now - last < 5:
+                            logger.debug("suppressing duplicate panel-exists message for channel %s (slash)", channel_id)
+                            return
+                        _last_panel_notification[channel_id] = now
+                        await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
+                        return
+                except Exception:
+                    await interaction.response.send_message("❗ Panel đã tồn tại trong kênh này.", ephemeral=True)
+                    return
             _panels_creation_in_progress.add(channel_id)
             embed = create_panel_embed()
 
@@ -427,6 +482,7 @@ class Tickets(commands.Cog):
             await interaction.response.send_message(embed=embed_success)
             logger.info(f"Panel created in {interaction.guild} | Channel: {interaction.channel.id}")
             _panels_creation_in_progress.discard(channel_id)
+            _last_panel_notification.pop(channel_id, None)
 
         except Exception as e:
             logger.error(f"Error in /ticket setup: {e}")

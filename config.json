@@ -1,10 +1,16 @@
-# Configuration file
 {
   "prefix": "!",
   "staff_role": "Staff",
   "admin_role": "Admin",
   "ticket_category": "Tickets",
   "ticket_prefix": "ticket",
+  "panel_channel_id": null,
+  "panel_categories": [
+    "🎮 Hỗ trợ Game",
+    "💳 Hỗ trợ Account",
+    "🐛 Báo Bug",
+    "💬 Khác"
+  ],
   "welcome_message": "Cảm ơn bạn đã mở ticket! 👋\n\nStaff sẽ sớm hỗ trợ bạn. Vui lòng mô tả vấn đề chi tiết.",
   "ticket_color": 5814783,
   "auto_close_delay": 5,

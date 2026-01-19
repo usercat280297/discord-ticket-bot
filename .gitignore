@@ -17,7 +17,25 @@ Thumbs.db
 
 # Data
 data/
+tickets.json
+config.json
+database.db
+*.db
 
 # Logs
 *.log
 logs/
+
+# Python
+build/
+dist/
+venv/
+ENV/
+env/
+.venv
+*.so
+*.egg
+
+# Temporary
+*.tmp
+temp/

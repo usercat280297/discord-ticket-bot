@@ -6,20 +6,25 @@ def load_config() -> dict:
     with open('config.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def create_panel_embed(category: str) -> discord.Embed:
-    """Tạo embed panel ticket"""
+def create_panel_embed() -> discord.Embed:
+    """Tạo embed panel ticket chính"""
     config = load_config()
     embed = discord.Embed(
-        title=f"📋 Panel Ticket - {category}",
-        description="Nhấn vào nút dưới để mở một ticket mới",
+        title="🎫 Hệ Thống Ticket Hỗ Trợ",
+        description="Chào mừng đến với hệ thống hỗ trợ của chúng tôi!\n\n**Hãy chọn loại vấn đề của bạn từ dropdown bên dưới:**",
         color=config.get("ticket_color", 5814783)
     )
     embed.add_field(
-        name="Cần hỗ trợ?",
-        value="Hãy bấm nút 'Mở Ticket' để tạo một ticket và liên hệ với team hỗ trợ",
+        name="📞 Thời Gian Phản Hồi",
+        value="• 🎮 Hỗ trợ Game: 10-30 phút\n• 💳 Hỗ trợ Account: 5-15 phút\n• 🐛 Báo Bug: 15-60 phút",
         inline=False
     )
-    embed.set_footer(text="Discord Ticket Bot | Phản hồi nhanh chóng")
+    embed.add_field(
+        name="💡 Lưu Ý",
+        value="• Hãy mô tả vấn đề chi tiết để staff hỗ trợ nhanh hơn\n• Cung cấp ảnh chụp màn hình nếu cần thiết\n• Chỉ mở 1 ticket cho mỗi vấn đề",
+        inline=False
+    )
+    embed.set_footer(text="Discord Ticket Bot | Luôn sẵn sàng hỗ trợ bạn ✨")
     return embed
 
 def create_ticket_embed(user: discord.User, category: str) -> discord.Embed:
